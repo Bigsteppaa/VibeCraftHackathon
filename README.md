@@ -1,35 +1,111 @@
-# VibeCraftHackathon
+# Focus OS – Smart Study Workspace
 
-This is a [Next.js](https://nextjs.org) project bootstrapped with [v0](https://v0.app).
+## Live Demo
 
-## Built with v0
+https://vibe-craft-hackathon.vercel.app/
 
-This repository is linked to a [v0](https://v0.app) project. You can continue developing by visiting the link below -- start new chats to make changes, and v0 will push commits directly to this repo. Every merge to `main` will automatically deploy.
+---
 
-[Continue working on v0 →](https://v0.app/chat/projects/prj_bUygbxNmtq2PQXF5xntly0Y2zXyi)
+## Overview
 
-## Getting Started
+Focus OS is a unified productivity workspace designed to help students stay focused while studying.
 
-First, run the development server:
+It integrates a music player, Pomodoro timer, and task management system into a single seamless interface where all modules run simultaneously without interruption.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Core Features
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Music Player
 
-## Learn More
+* YouTube-powered lofi streaming
+* Play / Pause functionality
+* Switch between multiple streams
+* Volume control
+* Visual playback state
 
-To learn more, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-- [v0 Documentation](https://v0.app/docs) - learn about v0 and how to use it.
+### Pomodoro Timer
 
-<a href="https://v0.app/chat/api/kiro/clone/Bigsteppaa/VibeCraftHackathon" alt="Open in Kiro"><img src="https://pdgvvgmkdvyeydso.public.blob.vercel-storage.com/open%20in%20kiro.svg?sanitize=true" /></a>
+* 25-minute focus timer
+* Start / Pause / Reset
+* Session counter
+* Visual timer state
+* Animated SVG progress ring
+
+---
+
+### Task Manager
+
+* Add, edit, and delete tasks
+* Mark tasks complete/incomplete
+* Persistent storage using localStorage
+* Live progress tracking (completed vs total)
+
+---
+
+## Bounty Features Implemented
+
+* Motivational Quotes (+25)
+
+  * Fetched from a public API
+  * Auto-refresh every few minutes
+  * Graceful fallback on failure
+
+* Keyboard Shortcut System (+10)
+
+  * Space → Play/Pause music
+  * S → Start/Pause timer
+  * N → Focus task input
+  * C → Clear completed tasks
+
+* Animated SVG Timer Ring (+15)
+
+  * Smooth real-time countdown visualization
+
+---
+
+## Keyboard Shortcuts
+
+| Key   | Action                |
+| ----- | --------------------- |
+| Space | Play/Pause Music      |
+| S     | Start/Pause Timer     |
+| N     | Focus Task Input      |
+| C     | Clear Completed Tasks |
+
+---
+
+## Tech Stack
+
+* HTML
+* CSS
+* JavaScript
+* YouTube IFrame API
+* Quotable API (Motivational Quotes)
+
+---
+
+## Deployment
+
+Deployed using Vercel
+
+---
+
+## Run Locally
+
+1. Clone the repository
+2. Open `index.html` in any browser
+
+---
+
+## Key Highlight
+
+The application is designed as a real-time interactive system where all components work together seamlessly to enhance user focus and productivity.
+
+---
+
+## Final Note
+
+The goal was to create a usable, responsive, and engaging study environment rather than just implementing isolated features.
