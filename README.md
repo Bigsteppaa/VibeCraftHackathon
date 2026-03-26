@@ -1,4 +1,4 @@
-# Focus OS – Smart Study Workspace
+# Flowstate – Smart Study Workspace
 
 ## Live Demo
 
