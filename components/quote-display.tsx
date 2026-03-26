@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Quote, RefreshCw, Sparkles } from "lucide-react"
+import { Quote, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface QuoteData {
@@ -18,10 +18,6 @@ const FALLBACK_QUOTES: QuoteData[] = [
   { content: "You don't have to be great to start, but you have to start to be great.", author: "Zig Ziglar" },
   { content: "Success is the sum of small efforts repeated day in and day out.", author: "Robert Collier" },
   { content: "The only way to do great work is to love what you do.", author: "Steve Jobs" },
-  { content: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius" },
-  { content: "Quality is not an act, it is a habit.", author: "Aristotle" },
-  { content: "The best time to plant a tree was 20 years ago. The second best time is now.", author: "Chinese Proverb" },
-  { content: "Your limitation—it's only your imagination.", author: "Unknown" },
 ]
 
 export function QuoteDisplay() {
@@ -45,6 +41,7 @@ export function QuoteDisplay() {
         throw new Error("API failed")
       }
     } catch {
+      // Use fallback quotes
       const randomQuote = FALLBACK_QUOTES[Math.floor(Math.random() * FALLBACK_QUOTES.length)]
       setTimeout(() => {
         setQuote(randomQuote)
@@ -57,56 +54,40 @@ export function QuoteDisplay() {
 
   useEffect(() => {
     fetchQuote()
+    
+    // Refresh quote every 5 minutes
     const interval = setInterval(fetchQuote, 5 * 60 * 1000)
     return () => clearInterval(interval)
   }, [fetchQuote])
 
   return (
-    <div className="relative overflow-hidden glass rounded-2xl p-5 md:p-6 glass-hover group">
-      {/* Decorative gradient accent */}
-      <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary opacity-50" />
-      
-      {/* Sparkle decoration */}
-      <Sparkles className="absolute top-4 right-4 h-4 w-4 text-accent/30 group-hover:text-accent/50 transition-colors" />
-      
-      <div className="flex items-start gap-4">
-        {/* Quote icon with glow */}
-        <div className="relative flex-shrink-0">
-          <div className="absolute inset-0 bg-accent/20 blur-lg rounded-full" />
-          <div className="relative p-2 rounded-xl bg-accent/10">
-            <Quote className="h-5 w-5 text-accent" />
-          </div>
-        </div>
-        
+    <div className="glass rounded-2xl p-4 md:p-6 glass-hover">
+      <div className="flex items-start gap-3">
+        <Quote className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
         <div className="flex-1 min-w-0">
           <p
             className={cn(
-              "text-foreground text-base md:text-lg leading-relaxed font-medium transition-all duration-300 text-balance",
-              isChanging ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
+              "text-foreground text-sm md:text-base leading-relaxed transition-opacity duration-300",
+              isChanging ? "opacity-0" : "opacity-100"
             )}
           >
-            &ldquo;{quote?.content || "Loading inspiration..."}&rdquo;
+            {quote?.content || "Loading inspiration..."}
           </p>
-          <div className={cn(
-            "flex items-center gap-2 mt-3 transition-all duration-300",
-            isChanging ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
-          )}>
-            <div className="h-px flex-1 bg-gradient-to-r from-border to-transparent max-w-16" />
-            <p className="text-muted-foreground text-sm italic">
-              {quote?.author || "..."}
-            </p>
-          </div>
+          <p
+            className={cn(
+              "text-muted-foreground text-xs md:text-sm mt-2 transition-opacity duration-300",
+              isChanging ? "opacity-0" : "opacity-100"
+            )}
+          >
+            — {quote?.author || "..."}
+          </p>
         </div>
-        
-        {/* Refresh button */}
         <button
           onClick={fetchQuote}
           disabled={isLoading}
           className={cn(
-            "flex-shrink-0 p-2.5 rounded-xl transition-all duration-300",
-            "text-muted-foreground hover:text-foreground",
-            "hover:bg-secondary/80 active:scale-95",
-            isLoading && "animate-spin text-primary"
+            "flex-shrink-0 p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary transition-all",
+            isLoading && "animate-spin"
           )}
           title="Get new quote"
         >

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, forwardRef, useImperativeHandle, useRef } from "react"
-import { Plus, Trash2, GripVertical, Check, ListTodo, X, Sparkles, Circle } from "lucide-react"
+import { Plus, Trash2, GripVertical, Check, ListTodo, X } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface Task {
@@ -27,32 +27,36 @@ export const TaskPanel = forwardRef<TaskPanelRef, TaskPanelProps>(
     const [editingId, setEditingId] = useState<string | null>(null)
     const [editText, setEditText] = useState("")
     const [draggedId, setDraggedId] = useState<string | null>(null)
-    const [dragOverId, setDragOverId] = useState<string | null>(null)
     const inputRef = useRef<HTMLInputElement>(null)
 
+    // Load tasks from localStorage
     useEffect(() => {
       const saved = localStorage.getItem("focus-tasks")
-      if (saved) setTasks(JSON.parse(saved))
+      if (saved) {
+        setTasks(JSON.parse(saved))
+      }
     }, [])
 
+    // Save tasks to localStorage
     useEffect(() => {
       localStorage.setItem("focus-tasks", JSON.stringify(tasks))
     }, [tasks])
 
     useImperativeHandle(ref, () => ({
-      clearCompleted: () => setTasks((prev) => prev.filter((t) => !t.completed)),
+      clearCompleted: () => clearCompletedTasks(),
       focusInput: () => inputRef.current?.focus(),
     }))
 
     const addTask = (e: React.FormEvent) => {
       e.preventDefault()
       if (newTask.trim()) {
-        setTasks((prev) => [...prev, {
+        const task: Task = {
           id: crypto.randomUUID(),
           text: newTask.trim(),
           completed: false,
-          order: prev.length,
-        }])
+          order: tasks.length,
+        }
+        setTasks((prev) => [...prev, task])
         setNewTask("")
       }
     }
@@ -61,8 +65,11 @@ export const TaskPanel = forwardRef<TaskPanelRef, TaskPanelProps>(
       setTasks((prev) =>
         prev.map((task) => {
           if (task.id === id) {
-            if (!task.completed) onTaskComplete?.(task.text)
-            return { ...task, completed: !task.completed }
+            const newCompleted = !task.completed
+            if (newCompleted) {
+              onTaskComplete?.(task.text)
+            }
+            return { ...task, completed: newCompleted }
           }
           return task
         })
@@ -71,6 +78,10 @@ export const TaskPanel = forwardRef<TaskPanelRef, TaskPanelProps>(
 
     const deleteTask = (id: string) => {
       setTasks((prev) => prev.filter((task) => task.id !== id))
+    }
+
+    const clearCompletedTasks = () => {
+      setTasks((prev) => prev.filter((task) => !task.completed))
     }
 
     const startEditing = (task: Task) => {
@@ -87,16 +98,23 @@ export const TaskPanel = forwardRef<TaskPanelRef, TaskPanelProps>(
         )
       }
       setEditingId(null)
+      setEditText("")
     }
 
+    const cancelEdit = () => {
+      setEditingId(null)
+      setEditText("")
+    }
+
+    // Drag and drop handlers
     const handleDragStart = (e: React.DragEvent, id: string) => {
       setDraggedId(id)
       e.dataTransfer.effectAllowed = "move"
     }
 
-    const handleDragOver = (e: React.DragEvent, id: string) => {
+    const handleDragOver = (e: React.DragEvent) => {
       e.preventDefault()
-      setDragOverId(id)
+      e.dataTransfer.dropEffect = "move"
     }
 
     const handleDrop = (e: React.DragEvent, targetId: string) => {
@@ -112,62 +130,53 @@ export const TaskPanel = forwardRef<TaskPanelRef, TaskPanelProps>(
         })
       }
       setDraggedId(null)
-      setDragOverId(null)
+    }
+
+    const handleDragEnd = () => {
+      setDraggedId(null)
     }
 
     const completedCount = tasks.filter((t) => t.completed).length
     const totalCount = tasks.length
-    const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0
 
     return (
       <div className="glass rounded-2xl p-6 glass-hover h-full flex flex-col">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2.5">
-            <div className={cn(
-              "p-2 rounded-xl transition-colors",
-              completedCount > 0 ? "bg-primary/20" : "bg-secondary"
-            )}>
-              <ListTodo className={cn("h-4 w-4", completedCount > 0 ? "text-primary" : "text-muted-foreground")} />
-            </div>
+        <div className="mb-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <ListTodo className="h-5 w-5 text-primary" />
             <h2 className="text-lg font-semibold text-foreground">Tasks</h2>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              <div className="w-16 h-1.5 rounded-full bg-secondary overflow-hidden">
-                <div 
-                  className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
-                  style={{ width: `${progress}%` }}
-                />
-              </div>
-              <span className="text-xs text-muted-foreground tabular-nums">{completedCount}/{totalCount}</span>
-            </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              <span className="font-semibold text-primary">{completedCount}</span>
+              <span className="mx-1">/</span>
+              <span>{totalCount}</span>
+            </span>
             {completedCount > 0 && (
               <button
-                onClick={() => setTasks((prev) => prev.filter((t) => !t.completed))}
-                className="text-xs px-2 py-1 rounded-lg bg-secondary/80 text-muted-foreground hover:text-foreground transition-all"
+                onClick={clearCompletedTasks}
+                className="text-xs px-2 py-1 rounded bg-secondary text-muted-foreground hover:text-foreground transition-colors"
               >
-                Clear
+                Clear done
               </button>
             )}
           </div>
         </div>
 
-        {/* Add Task */}
+        {/* Add Task Form */}
         <form onSubmit={addTask} className="mb-4">
           <div className="flex gap-2">
             <input
               ref={inputRef}
               type="text"
-              placeholder="What needs to be done?"
+              placeholder="Add a new task..."
               value={newTask}
               onChange={(e) => setNewTask(e.target.value)}
               className="flex-1 px-4 py-2.5 rounded-xl bg-input text-foreground placeholder:text-muted-foreground border border-border focus:outline-none focus:ring-2 focus:ring-ring transition-all"
             />
             <button
               type="submit"
-              disabled={!newTask.trim()}
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground hover:scale-105 active:scale-95 shadow-lg shadow-primary/20 disabled:opacity-50 disabled:hover:scale-100 transition-all"
+              className="px-4 py-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-all hover:scale-105 active:scale-95"
             >
               <Plus className="h-5 w-5" />
             </button>
@@ -175,10 +184,10 @@ export const TaskPanel = forwardRef<TaskPanelRef, TaskPanelProps>(
         </form>
 
         {/* Task List */}
-        <div className="flex-1 overflow-y-auto space-y-2 min-h-0 max-h-[300px] pr-1">
+        <div className="flex-1 overflow-y-auto space-y-2 min-h-0 max-h-[300px]">
           {tasks.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-32 text-muted-foreground">
-              <Circle className="h-10 w-10 opacity-20 mb-2" />
+              <ListTodo className="h-8 w-8 mb-2 opacity-50" />
               <p className="text-sm">No tasks yet</p>
               <p className="text-xs opacity-70">Add one to get started</p>
             </div>
@@ -188,20 +197,18 @@ export const TaskPanel = forwardRef<TaskPanelRef, TaskPanelProps>(
                 key={task.id}
                 draggable
                 onDragStart={(e) => handleDragStart(e, task.id)}
-                onDragOver={(e) => handleDragOver(e, task.id)}
-                onDragLeave={() => setDragOverId(null)}
+                onDragOver={handleDragOver}
                 onDrop={(e) => handleDrop(e, task.id)}
-                onDragEnd={() => { setDraggedId(null); setDragOverId(null) }}
+                onDragEnd={handleDragEnd}
                 className={cn(
                   "group flex items-center gap-3 p-3 rounded-xl transition-all duration-200",
-                  "bg-secondary/40 hover:bg-secondary/60",
-                  draggedId === task.id && "opacity-50 scale-[0.98]",
-                  dragOverId === task.id && draggedId !== task.id && "ring-2 ring-primary/50",
+                  "bg-secondary/50 hover:bg-secondary/80",
+                  draggedId === task.id && "opacity-50 scale-95",
                   task.completed && "opacity-60"
                 )}
               >
                 {/* Drag Handle */}
-                <div className="cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-muted-foreground transition-colors">
+                <div className="cursor-grab active:cursor-grabbing text-muted-foreground/50 hover:text-muted-foreground">
                   <GripVertical className="h-4 w-4" />
                 </div>
 
@@ -209,16 +216,13 @@ export const TaskPanel = forwardRef<TaskPanelRef, TaskPanelProps>(
                 <button
                   onClick={() => toggleTask(task.id)}
                   className={cn(
-                    "flex-shrink-0 h-5 w-5 rounded-md border-2 transition-all duration-300 flex items-center justify-center",
+                    "flex-shrink-0 h-5 w-5 rounded-md border-2 transition-all duration-200 flex items-center justify-center",
                     task.completed
-                      ? "bg-gradient-to-br from-primary to-primary/80 border-primary"
-                      : "border-muted-foreground/40 hover:border-primary"
+                      ? "bg-primary border-primary"
+                      : "border-muted-foreground/50 hover:border-primary"
                   )}
                 >
-                  <Check className={cn(
-                    "h-3 w-3 text-primary-foreground transition-all",
-                    task.completed ? "scale-100 opacity-100" : "scale-0 opacity-0"
-                  )} />
+                  {task.completed && <Check className="h-3 w-3 text-primary-foreground" />}
                 </button>
 
                 {/* Task Text */}
@@ -230,34 +234,42 @@ export const TaskPanel = forwardRef<TaskPanelRef, TaskPanelProps>(
                       onChange={(e) => setEditText(e.target.value)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") saveEdit()
-                        if (e.key === "Escape") setEditingId(null)
+                        if (e.key === "Escape") cancelEdit()
                       }}
                       autoFocus
-                      className="flex-1 px-2 py-1 rounded-lg bg-input text-foreground text-sm border border-border focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="flex-1 px-2 py-1 rounded bg-input text-foreground text-sm border border-border focus:outline-none focus:ring-1 focus:ring-ring"
                     />
-                    <button onClick={saveEdit} className="p-1 rounded bg-primary/20 text-primary hover:bg-primary/30">
-                      <Check className="h-3.5 w-3.5" />
+                    <button
+                      onClick={saveEdit}
+                      className="text-primary hover:text-primary/80"
+                    >
+                      <Check className="h-4 w-4" />
                     </button>
-                    <button onClick={() => setEditingId(null)} className="p-1 rounded bg-secondary text-muted-foreground hover:text-foreground">
-                      <X className="h-3.5 w-3.5" />
+                    <button
+                      onClick={cancelEdit}
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 ) : (
                   <span
                     onClick={() => startEditing(task)}
                     className={cn(
-                      "flex-1 text-sm cursor-pointer transition-all leading-relaxed",
-                      task.completed ? "line-through text-muted-foreground" : "text-foreground hover:text-primary"
+                      "flex-1 text-sm cursor-pointer transition-all",
+                      task.completed
+                        ? "line-through text-muted-foreground"
+                        : "text-foreground"
                     )}
                   >
                     {task.text}
                   </span>
                 )}
 
-                {/* Delete */}
+                {/* Delete Button */}
                 <button
                   onClick={() => deleteTask(task.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all"
+                  className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
                 >
                   <Trash2 className="h-4 w-4" />
                 </button>
@@ -265,14 +277,6 @@ export const TaskPanel = forwardRef<TaskPanelRef, TaskPanelProps>(
             ))
           )}
         </div>
-
-        {/* Completion Message */}
-        {totalCount > 0 && completedCount === totalCount && (
-          <div className="mt-4 p-3 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-2 animate-fade-in-up">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm text-primary font-medium">All done! Great work!</span>
-          </div>
-        )}
       </div>
     )
   }
