@@ -1,24 +1,26 @@
 "use client"
 
 import { useState, useEffect, useRef, forwardRef, useImperativeHandle, useCallback } from "react"
-import { Play, Pause, RotateCcw, Clock, Settings, Plus, Check, X } from "lucide-react"
+import { Play, Pause, RotateCcw, Clock, Settings, Plus, Check, X, ChevronDown } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface TimerPreset {
   id: string
   name: string
   duration: number
+  color: string
 }
 
 const DEFAULT_PRESETS: TimerPreset[] = [
-  { id: "1", name: "Pomodoro", duration: 25 },
-  { id: "2", name: "Short Break", duration: 5 },
-  { id: "3", name: "Long Break", duration: 15 },
+  { id: "1", name: "Focus", duration: 25, color: "primary" },
+  { id: "2", name: "Short Break", duration: 5, color: "accent" },
+  { id: "3", name: "Long Break", duration: 15, color: "chart-3" },
 ]
 
 interface PomodoroTimerProps {
   onSessionComplete?: (duration: number) => void
   onRunningChange?: (running: boolean) => void
+  focusMode?: boolean
 }
 
 export interface PomodoroTimerRef {
@@ -27,13 +29,14 @@ export interface PomodoroTimerRef {
 }
 
 export const PomodoroTimer = forwardRef<PomodoroTimerRef, PomodoroTimerProps>(
-  ({ onSessionComplete, onRunningChange }, ref) => {
+  ({ onSessionComplete, onRunningChange, focusMode = false }, ref) => {
     const [presets, setPresets] = useState<TimerPreset[]>([])
     const [activePreset, setActivePreset] = useState<TimerPreset>(DEFAULT_PRESETS[0])
     const [timeLeft, setTimeLeft] = useState(25 * 60)
     const [isRunning, setIsRunning] = useState(false)
     const [sessionsCompleted, setSessionsCompleted] = useState(0)
     const [showSettings, setShowSettings] = useState(false)
+    const [showPresetDropdown, setShowPresetDropdown] = useState(false)
     const [newPresetName, setNewPresetName] = useState("")
     const [newPresetDuration, setNewPresetDuration] = useState(25)
     const audioRef = useRef<HTMLAudioElement | null>(null)
@@ -55,12 +58,10 @@ export const PomodoroTimer = forwardRef<PomodoroTimerRef, PomodoroTimerProps>(
       }
     }, [])
 
-    // Save presets to localStorage
     useEffect(() => {
       localStorage.setItem("timer-presets", JSON.stringify(presets))
     }, [presets])
 
-    // Save sessions count
     useEffect(() => {
       localStorage.setItem(
         "sessions-today",
@@ -93,15 +94,18 @@ export const PomodoroTimer = forwardRef<PomodoroTimerRef, PomodoroTimerProps>(
       setTimeLeft(preset.duration * 60)
       initialDuration.current = preset.duration * 60
       setIsRunning(false)
+      setShowPresetDropdown(false)
       onRunningChange?.(false)
     }
 
     const addPreset = () => {
       if (newPresetName.trim() && newPresetDuration > 0) {
+        const colors = ["primary", "accent", "chart-3", "chart-4", "chart-5"]
         const newPreset: TimerPreset = {
           id: crypto.randomUUID(),
           name: newPresetName.trim(),
           duration: newPresetDuration,
+          color: colors[Math.floor(Math.random() * colors.length)],
         }
         setPresets((prev) => [...prev, newPreset])
         setNewPresetName("")
@@ -113,7 +117,6 @@ export const PomodoroTimer = forwardRef<PomodoroTimerRef, PomodoroTimerProps>(
       setPresets((prev) => prev.filter((p) => p.id !== id))
     }
 
-    // Timer logic
     useEffect(() => {
       let interval: NodeJS.Timeout
 
@@ -122,17 +125,14 @@ export const PomodoroTimer = forwardRef<PomodoroTimerRef, PomodoroTimerProps>(
           setTimeLeft((prev) => prev - 1)
         }, 1000)
       } else if (timeLeft === 0 && isRunning) {
-        // Timer completed
         setIsRunning(false)
         onRunningChange?.(false)
         setSessionsCompleted((prev) => prev + 1)
         onSessionComplete?.(activePreset.duration)
         
-        // Play completion sound
         try {
           audioRef.current = new Audio("/timer-complete.mp3")
           audioRef.current.play().catch(() => {
-            // Fallback: use Web Audio API for a simple beep
             const audioContext = new (window.AudioContext || (window as typeof window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
             const oscillator = audioContext.createOscillator()
             const gainNode = audioContext.createGain()
@@ -146,7 +146,7 @@ export const PomodoroTimer = forwardRef<PomodoroTimerRef, PomodoroTimerProps>(
             oscillator.stop(audioContext.currentTime + 0.5)
           })
         } catch {
-          // Silent fail if audio is not supported
+          // Silent fail
         }
       }
 
@@ -160,39 +160,85 @@ export const PomodoroTimer = forwardRef<PomodoroTimerRef, PomodoroTimerProps>(
     }
 
     const progress = (initialDuration.current - timeLeft) / initialDuration.current
-    const circumference = 2 * Math.PI * 120
+    const circumference = 2 * Math.PI * 140
     const strokeDashoffset = circumference * (1 - progress)
 
+    const allPresets = [...DEFAULT_PRESETS, ...presets]
+
     return (
-      <div className="glass rounded-2xl p-6 glass-hover h-full">
-        <div className="mb-4 flex items-center justify-between">
+      <div className={cn(
+        "glass rounded-2xl glass-hover h-full transition-all duration-500",
+        focusMode ? "p-4" : "p-6"
+      )}>
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold text-foreground">Focus Timer</h2>
+            <div className={cn(
+              "p-1.5 rounded-lg transition-colors",
+              isRunning ? "bg-primary/20" : "bg-secondary"
+            )}>
+              <Clock className={cn("h-4 w-4", isRunning ? "text-primary" : "text-muted-foreground")} />
+            </div>
+            <h2 className="text-base font-semibold text-foreground">Focus Timer</h2>
           </div>
-          <button
-            onClick={() => setShowSettings(!showSettings)}
-            className={cn(
-              "rounded-full p-2 transition-all",
-              showSettings
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-            )}
-          >
-            <Settings className="h-4 w-4" />
-          </button>
+          
+          <div className="flex items-center gap-2">
+            {/* Preset Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowPresetDropdown(!showPresetDropdown)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all",
+                  "bg-secondary/80 hover:bg-secondary text-secondary-foreground"
+                )}
+              >
+                {activePreset.name}
+                <ChevronDown className={cn("h-3 w-3 transition-transform", showPresetDropdown && "rotate-180")} />
+              </button>
+              
+              {showPresetDropdown && (
+                <div className="absolute top-full right-0 mt-2 w-40 glass rounded-xl p-2 z-20 animate-fade-in-up">
+                  {allPresets.map((preset) => (
+                    <button
+                      key={preset.id}
+                      onClick={() => selectPreset(preset)}
+                      className={cn(
+                        "w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-all",
+                        activePreset.id === preset.id
+                          ? "bg-primary/20 text-primary"
+                          : "hover:bg-secondary/80 text-foreground"
+                      )}
+                    >
+                      <span>{preset.name}</span>
+                      <span className="text-muted-foreground">{preset.duration}m</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowSettings(!showSettings)}
+              className={cn(
+                "rounded-lg p-1.5 transition-all",
+                showSettings
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
+              )}
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         {showSettings ? (
-          <div className="space-y-4">
-            {/* Preset selector */}
+          <div className="space-y-4 animate-fade-in-up">
             <div className="flex flex-wrap gap-2">
-              {[...DEFAULT_PRESETS, ...presets].map((preset) => (
+              {allPresets.map((preset) => (
                 <button
                   key={preset.id}
                   onClick={() => selectPreset(preset)}
                   className={cn(
-                    "px-3 py-1.5 rounded-lg text-sm transition-all flex items-center gap-2",
+                    "px-3 py-1.5 rounded-lg text-xs transition-all flex items-center gap-2",
                     activePreset.id === preset.id
                       ? "bg-primary text-primary-foreground"
                       : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
@@ -214,7 +260,6 @@ export const PomodoroTimer = forwardRef<PomodoroTimerRef, PomodoroTimerProps>(
               ))}
             </div>
 
-            {/* Add new preset */}
             <div className="flex gap-2">
               <input
                 type="text"
@@ -241,77 +286,168 @@ export const PomodoroTimer = forwardRef<PomodoroTimerRef, PomodoroTimerProps>(
           </div>
         ) : (
           <>
-            {/* Timer Display with SVG Ring */}
-            <div className="relative mx-auto w-64 h-64 mb-6">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 256 256">
-                {/* Background ring */}
+            {/* Timer Display with enhanced SVG Ring */}
+            <div className={cn(
+              "relative mx-auto aspect-square mb-4 transition-all duration-500",
+              focusMode ? "w-48" : "w-64 md:w-72"
+            )}>
+              {/* Outer glow effect */}
+              {isRunning && (
+                <div className="absolute inset-0 rounded-full bg-primary/10 blur-2xl animate-pulse" />
+              )}
+              
+              {/* Background decorative ring */}
+              <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 320 320">
                 <circle
-                  cx="128"
-                  cy="128"
-                  r="120"
+                  cx="160"
+                  cy="160"
+                  r="150"
                   fill="none"
                   stroke="currentColor"
-                  strokeWidth="8"
-                  className="text-secondary"
+                  strokeWidth="2"
+                  className="text-secondary/30"
+                  strokeDasharray="4 8"
                 />
-                {/* Progress ring */}
+              </svg>
+
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 320 320">
+                {/* Main background ring */}
                 <circle
-                  cx="128"
-                  cy="128"
-                  r="120"
+                  cx="160"
+                  cy="160"
+                  r="140"
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="8"
+                  className="text-secondary/50"
+                />
+                
+                {/* Progress ring with gradient */}
+                <defs>
+                  <linearGradient id="timerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="oklch(0.75 0.18 180)" />
+                    <stop offset="100%" stopColor="oklch(0.65 0.15 30)" />
+                  </linearGradient>
+                </defs>
+                <circle
+                  cx="160"
+                  cy="160"
+                  r="140"
+                  fill="none"
+                  stroke="url(#timerGradient)"
+                  strokeWidth="10"
                   strokeLinecap="round"
                   strokeDasharray={circumference}
                   strokeDashoffset={strokeDashoffset}
                   className={cn(
-                    "timer-ring",
-                    isRunning ? "text-primary" : "text-primary/50"
+                    "timer-ring transition-all duration-300",
+                    !isRunning && "opacity-70"
                   )}
                 />
+                
+                {/* Inner decorative circle */}
+                <circle
+                  cx="160"
+                  cy="160"
+                  r="125"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1"
+                  className="text-border/50"
+                />
               </svg>
+
+              {/* Center content */}
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-5xl font-mono font-bold text-foreground tabular-nums">
+                <span className={cn(
+                  "font-mono font-bold text-foreground tabular-nums tracking-tight transition-all",
+                  focusMode ? "text-4xl" : "text-5xl md:text-6xl",
+                  isRunning && "text-primary"
+                )}>
                   {formatTime(timeLeft)}
                 </span>
-                <span className="text-sm text-muted-foreground mt-2">
+                <span className="text-xs text-muted-foreground mt-1 uppercase tracking-widest">
                   {activePreset.name}
                 </span>
+                
+                {/* Mini progress bar */}
+                <div className="mt-3 w-20 h-1 rounded-full bg-secondary/50 overflow-hidden">
+                  <div 
+                    className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-1000"
+                    style={{ width: `${progress * 100}%` }}
+                  />
+                </div>
               </div>
+
+              {/* Tick marks around the circle */}
+              {[...Array(60)].map((_, i) => (
+                <div
+                  key={i}
+                  className="absolute left-1/2 top-0 origin-bottom"
+                  style={{
+                    height: "50%",
+                    transform: `translateX(-50%) rotate(${i * 6}deg)`,
+                  }}
+                >
+                  <div className={cn(
+                    "w-px mx-auto rounded-full transition-colors",
+                    i % 5 === 0 ? "h-2 bg-muted-foreground/40" : "h-1 bg-muted-foreground/20"
+                  )} />
+                </div>
+              ))}
             </div>
 
             {/* Controls */}
-            <div className="flex items-center justify-center gap-4 mb-6">
+            <div className="flex items-center justify-center gap-4 mb-4">
               <button
                 onClick={resetTimer}
-                className="rounded-full p-3 text-muted-foreground hover:text-foreground hover:bg-secondary transition-all"
+                className="group rounded-full p-3 text-muted-foreground hover:text-foreground hover:bg-secondary/80 transition-all"
               >
-                <RotateCcw className="h-5 w-5" />
+                <RotateCcw className="h-5 w-5 group-hover:rotate-[-360deg] transition-transform duration-500" />
               </button>
+              
               <button
                 onClick={toggleTimer}
                 className={cn(
-                  "rounded-full p-4 transition-all duration-300",
-                  "bg-primary text-primary-foreground",
+                  "relative rounded-full p-5 transition-all duration-300",
+                  "bg-gradient-to-br from-primary to-primary/80 text-primary-foreground",
                   "hover:scale-105 active:scale-95",
+                  "shadow-lg shadow-primary/25",
                   isRunning && "animate-pulse-glow"
                 )}
               >
-                {isRunning ? (
-                  <Pause className="h-6 w-6" />
-                ) : (
-                  <Play className="h-6 w-6 ml-0.5" />
-                )}
+                {/* Button glow effect */}
+                <div className="absolute inset-0 rounded-full bg-primary/20 blur-md" />
+                <div className="relative">
+                  {isRunning ? (
+                    <Pause className="h-6 w-6" />
+                  ) : (
+                    <Play className="h-6 w-6 ml-0.5" />
+                  )}
+                </div>
               </button>
+              
+              <div className="w-11" /> {/* Spacer for symmetry */}
             </div>
 
             {/* Session Counter */}
-            <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
-              <Check className="h-4 w-4 text-primary" />
-              <span>
-                <span className="font-semibold text-foreground">{sessionsCompleted}</span> sessions
-                completed today
+            <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center gap-1">
+                {[...Array(4)].map((_, i) => (
+                  <div
+                    key={i}
+                    className={cn(
+                      "w-2 h-2 rounded-full transition-all duration-300",
+                      i < sessionsCompleted % 4
+                        ? "bg-primary scale-100"
+                        : "bg-secondary scale-75"
+                    )}
+                  />
+                ))}
+              </div>
+              <span className="text-sm text-muted-foreground">
+                <span className="font-semibold text-foreground tabular-nums">{sessionsCompleted}</span>
+                {" "}sessions today
               </span>
             </div>
           </>
